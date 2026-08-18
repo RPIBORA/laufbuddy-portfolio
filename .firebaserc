@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "laufbuddy-v2"
+  },
+  "targets": {
+    "laufbuddy-v2": {
+      "hosting": {
+        "live": [
+          "laufbuddy-live"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

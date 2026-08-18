@@ -1,0 +1,47 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/config/hotwordConfig.ts",
+    "src/config/voicePrompts.ts",
+
+    "src/core/appRules.ts",
+    "src/core/appOrchestrator.ts",
+    "src/core/createBuddyAnnouncementContext.ts",
+    "src/core/createAppOrchestratorContext.ts",
+    "src/core/hotwordDecision.ts",
+    "src/core/runDetectedHotword.ts",
+    "src/core/runPassiveOrchestration.ts",
+    "src/core/syncBuddyConnectionAnnouncementState.ts",
+
+    "src/state/audioControlStatus.ts",
+    "src/state/audioControlStore.ts",
+    "src/state/bosEmergencyStatus.ts",
+    "src/state/bosEmergencyStore.ts",
+    "src/state/buddyAudioStatus.ts",
+    "src/state/buddyAudioStore.ts",
+    "src/state/buddyConnectionAnnouncementStore.ts",
+    "src/state/connectivityStatus.ts",
+    "src/state/connectivityStore.ts",
+    "src/state/connectionRecoveryStatus.ts",
+    "src/state/connectionRecoveryStore.ts",
+    "src/state/headphoneStatus.ts",
+    "src/state/headphoneStore.ts",
+    "src/state/hotwordStatus.ts",
+    "src/state/hotwordStore.ts",
+    "src/state/normalEmergencyStatus.ts",
+    "src/state/normalEmergencyStore.ts",
+    "src/state/sessionStatus.ts",
+    "src/state/sessionStore.ts",
+
+    "src/models/Session.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src_01",
+    "src_02",
+    "src_review",
+    "src/navigation",
+    "src/screens",
+    "src/app"
+  ]
+}

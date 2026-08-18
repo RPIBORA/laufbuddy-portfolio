@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "862089167524",
+    "project_id": "laufbuddy-v2",
+    "storage_bucket": "laufbuddy-v2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:862089167524:android:bff471a7fee5bc400cdc31",
+        "android_client_info": {
+          "package_name": "app.laufbuddy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "862089167524-ig81oqg8ja4v5d0p1vtcjhiesvmvopnt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.laufbuddy",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "862089167524-ojo2v81fnekgh8l4lt7lirvbr9iqe0a0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "app.laufbuddy",
+            "certificate_hash": "bf7412dcd24d9eaf5cbeb8ad8ee7f8cc382d012e"
+          }
+        },
+        {
+          "client_id": "862089167524-rkn78tjhg68absgogefkrof7td773psi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyClt1KRCWW426BfFzsOVJvwuvmQ0XRdPJk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "862089167524-rkn78tjhg68absgogefkrof7td773psi.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

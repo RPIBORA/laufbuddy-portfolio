@@ -1,0 +1,228 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+
+
+def loadDotEnvValue = { String variableName ->
+    def envFile = new File(projectRoot, ".env")
+
+    if (!envFile.exists()) {
+        return null
+    }
+
+    def matchingLine = envFile.readLines("UTF-8").find { rawLine ->
+        def line = rawLine.trim()
+
+        return !line.isEmpty() &&
+            !line.startsWith("#") &&
+            line.startsWith("${variableName}=")
+    }
+
+    if (matchingLine == null) {
+        return null
+    }
+
+    def value = matchingLine.substring(
+        matchingLine.indexOf("=") + 1
+    ).trim()
+
+    if (
+        value.length() >= 2 &&
+        (
+            (value.startsWith('"') && value.endsWith('"')) ||
+            (value.startsWith("'") && value.endsWith("'"))
+        )
+    ) {
+        value = value.substring(1, value.length() - 1)
+    }
+
+    return value.trim()
+}
+
+def googleMapsAndroidApiKey =
+    System.getenv("GOOGLE_MAPS_ANDROID_API_KEY")?.trim()
+
+if (!googleMapsAndroidApiKey) {
+    googleMapsAndroidApiKey =
+        loadDotEnvValue("GOOGLE_MAPS_ANDROID_API_KEY")
+}
+
+def releaseTaskRequested =
+    gradle.startParameter.taskNames.any { taskName ->
+        taskName.toLowerCase().contains("release")
+    }
+
+def releaseSigningProperties = new Properties()
+def releaseSigningPropertiesFile = rootProject.file("key.properties")
+
+if (releaseSigningPropertiesFile.exists()) {
+    releaseSigningPropertiesFile.withInputStream { stream ->
+        releaseSigningProperties.load(stream)
+    }
+}
+
+def releaseSigningValue = { String environmentName, String propertyName ->
+    System.getenv(environmentName)?.trim() ?:
+        releaseSigningProperties.getProperty(propertyName)?.trim()
+}
+
+def releaseStoreFile =
+    releaseSigningValue("LAUFBUDDY_RELEASE_STORE_FILE", "storeFile")
+def releaseStorePassword =
+    releaseSigningValue("LAUFBUDDY_RELEASE_STORE_PASSWORD", "storePassword")
+def releaseKeyAlias =
+    releaseSigningValue("LAUFBUDDY_RELEASE_KEY_ALIAS", "keyAlias")
+def releaseKeyPassword =
+    releaseSigningValue("LAUFBUDDY_RELEASE_KEY_PASSWORD", "keyPassword")
+def releaseSigningConfigComplete = [
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { value -> value }
+
+if (releaseTaskRequested && !googleMapsAndroidApiKey) {
+    throw new GradleException(
+        "GOOGLE_MAPS_ANDROID_API_KEY fehlt in Umgebung und .env"
+    )
+}
+
+if (releaseTaskRequested && !releaseSigningConfigComplete) {
+    throw new GradleException(
+        "Release signing configuration is incomplete. Set " +
+            "LAUFBUDDY_RELEASE_STORE_FILE, " +
+            "LAUFBUDDY_RELEASE_STORE_PASSWORD, " +
+            "LAUFBUDDY_RELEASE_KEY_ALIAS, and " +
+            "LAUFBUDDY_RELEASE_KEY_PASSWORD, or provide all four " +
+            "values in android/key.properties."
+    )
+}
+
+/**
+ * This is the configuration block to customize your React Native Android app.
+ * By default you don't need to apply any configuration, just uncomment the lines you need.
+ */
+react {
+    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
+    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json', { paths: [require.resolve('react-native/package.json')] })"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+
+    enableBundleCompression = (findProperty('android.enableBundleCompression') ?: false).toBoolean()
+    cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
+    bundleCommand = "export:embed"
+
+    autolinkLibrariesWithApp()
+}
+
+def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBuilds') ?: false).toBoolean()
+def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
+
+    namespace 'app.laufbuddy'
+    defaultConfig {
+        applicationId 'app.laufbuddy'
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+
+        manifestPlaceholders = [
+            googleMapsAndroidApiKey: googleMapsAndroidApiKey ?: ""
+        ]
+
+        buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            if (releaseSigningConfigComplete) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            signingConfig signingConfigs.release
+            def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
+            shrinkResources enableShrinkResources.toBoolean()
+            minifyEnabled enableMinifyInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
+            crunchPngs enablePngCrunchInRelease.toBoolean()
+        }
+    }
+
+    packagingOptions {
+        jniLibs {
+            def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
+            useLegacyPackaging enableLegacyPackaging.toBoolean()
+        }
+    }
+
+    androidResources {
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+}
+
+["pickFirsts", "excludes", "merges", "doNotStrip"].each { prop ->
+    def options = (findProperty("android.packagingOptions.$prop") ?: "").split(",");
+    for (i in 0..<options.size()) options[i] = options[i].trim();
+    options -= ""
+
+    if (options.length > 0) {
+        println "android.packagingOptions.$prop += $options ($options.length)"
+        options.each {
+            android.packagingOptions[prop] += it
+        }
+    }
+}
+
+dependencies {
+    implementation("com.facebook.react:react-android")
+    implementation("com.alphacephei:vosk-android:0.3.75@aar")
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    testImplementation("junit:junit:4.13.2")
+
+    def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
+    def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";
+    def isWebpAnimatedEnabled = (findProperty('expo.webp.animated') ?: "") == "true";
+
+    if (isGifEnabled) {
+        implementation("com.facebook.fresco:animated-gif:${expoLibs.versions.fresco.get()}")
+    }
+
+    if (isWebpEnabled) {
+        implementation("com.facebook.fresco:webpsupport:${expoLibs.versions.fresco.get()}")
+        if (isWebpAnimatedEnabled) {
+            implementation("com.facebook.fresco:animated-webp:${expoLibs.versions.fresco.get()}")
+        }
+    }
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
+    }
+}

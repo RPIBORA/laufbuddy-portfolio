@@ -1,0 +1,213 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isRoomParticipant(room) {
+      return signedIn() && request.auth.uid in room.data.participantUids;
+    }
+
+    function isRoomCaller(room) {
+      return isRoomParticipant(room) && request.auth.uid == room.data.callerUid;
+    }
+
+    function isRoomCallee(room) {
+      return isRoomParticipant(room) && request.auth.uid == room.data.calleeUid;
+    }
+
+    function roomFor(roomId) {
+      return get(/databases/$(database)/documents/rooms/$(roomId));
+    }
+
+    function validSessionDescription(description) {
+      return description is map
+        && description.keys().hasOnly(['type', 'sdp'])
+        && description.type is string
+        && description.sdp is string;
+    }
+
+    function validCandidate() {
+      return request.resource.data.keys().hasOnly([
+          'authorUid', 'candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment'
+        ])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.candidate is string
+        && (request.resource.data.sdpMid == null || request.resource.data.sdpMid is string)
+        && (request.resource.data.sdpMLineIndex == null || request.resource.data.sdpMLineIndex is int)
+        && (request.resource.data.usernameFragment == null || request.resource.data.usernameFragment is string);
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if isOwner(uid);
+      allow delete: if false;
+
+      match /buddies/{buddyId} {
+        allow read: if isOwner(uid);
+        allow create, update, delete: if false;
+      }
+
+      match /runs/{runId} {
+        allow read, create, update, delete: if isOwner(uid);
+
+        match /routeChunks/{chunkId} {
+          allow read, create, update, delete: if isOwner(uid);
+        }
+      }
+
+      match /shoes/{shoeId} {
+        allow read, create, update, delete: if isOwner(uid);
+      }
+
+      match /body/{documentId} {
+        allow read, create, update: if isOwner(uid);
+        allow delete: if false;
+      }
+
+      match /sync/{documentId} {
+        allow read, create, update: if isOwner(uid);
+        allow delete: if false;
+      }
+    }
+
+    // Legacy Buddy-IDs und daraus abgeleitete Räume sind absichtlich vollständig
+    // gesperrt. Sie enthielten keine serverseitig vertrauenswürdige Mitgliedschaft.
+    match /waiting_buddies/{buddyId} {
+      allow read, write: if false;
+    }
+
+    match /run_rooms/{roomId} {
+      allow read, write: if false;
+    }
+
+    // Invitation records are only directly readable by their creator. Acceptance is
+    // exclusively a callable Function transaction, so a token is never Firestore auth.
+    match /buddy_invitations/{invitationId} {
+      allow get, list: if signedIn() && resource.data.inviterUid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    // Rooms are created only by the Admin SDK in acceptBuddyInvitation. Participants
+    // are immutable because no client create/update rule can touch participant fields.
+    match /rooms/{roomId} {
+      allow get: if isRoomParticipant(resource);
+      allow list: if false;
+      allow create, delete: if false;
+      allow update: if isRoomCaller(resource)
+        && resource.data.offer == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['offer'])
+        && validSessionDescription(request.resource.data.offer);
+      allow update: if isRoomCallee(resource)
+        && resource.data.answer == null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answer'])
+        && validSessionDescription(request.resource.data.answer);
+
+      match /callerCandidates/{candidateId} {
+        allow read: if isRoomParticipant(roomFor(roomId));
+        allow create: if isRoomCaller(roomFor(roomId)) && validCandidate();
+        allow update, delete: if false;
+      }
+
+      match /calleeCandidates/{candidateId} {
+        allow read: if isRoomParticipant(roomFor(roomId));
+        allow create: if isRoomCallee(roomFor(roomId)) && validCandidate();
+        allow update, delete: if false;
+      }
+    }
+
+    // The 256-bit document id is an unguessable link capability. It permits a
+    // signed-in anonymous web companion to get one known session, never to query.
+    match /liveSessions/{sessionId} {
+      function validLiveSessionId() {
+        return sessionId.matches('^[a-f0-9]{64}$');
+      }
+
+      function liveOwner() {
+        return signedIn() && resource.data.ownerUid == request.auth.uid;
+      }
+
+      function validNullableNumber(value) {
+        return value == null || value is number;
+      }
+
+      function validPosition(position) {
+        return position is map
+          && position.keys().hasOnly(['latitude', 'longitude', 'accuracyMeters'])
+          && position.latitude is number
+          && position.longitude is number
+          && validNullableNumber(position.accuracyMeters);
+      }
+
+      // App-owned data only. A companion never receives write access here.
+      function validLiveSession() {
+        return request.resource.data.keys().hasOnly([
+            'ownerUid', 'runnerName', 'sessionStatus', 'createdAt',
+            'lastAppHeartbeatAt', 'route', 'distanceKm', 'durationSeconds',
+            'averagePaceSecondsPerKm', 'updatedAt', 'lastPosition',
+            'lastPositionReceivedAt', 'callAttemptRevision', 'callAttemptAt'
+          ])
+          && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.sessionStatus in ['active', 'ended']
+          && request.resource.data.route is list
+          && request.resource.data.distanceKm is number
+          && request.resource.data.distanceKm >= 0
+          && request.resource.data.durationSeconds is number
+          && request.resource.data.durationSeconds >= 0
+          && (!('averagePaceSecondsPerKm' in request.resource.data)
+            || validNullableNumber(request.resource.data.averagePaceSecondsPerKm))
+          && (!('runnerName' in request.resource.data) || request.resource.data.runnerName is string)
+          && (!('createdAt' in request.resource.data) || request.resource.data.createdAt is timestamp)
+          && (!('lastAppHeartbeatAt' in request.resource.data) || request.resource.data.lastAppHeartbeatAt is timestamp)
+          && (!('updatedAt' in request.resource.data) || request.resource.data.updatedAt is timestamp)
+          && (!('lastPosition' in request.resource.data) || validPosition(request.resource.data.lastPosition))
+          && (!('lastPositionReceivedAt' in request.resource.data) || request.resource.data.lastPositionReceivedAt is timestamp)
+          && (!('callAttemptRevision' in request.resource.data) || request.resource.data.callAttemptRevision is int)
+          && (!('callAttemptAt' in request.resource.data) || request.resource.data.callAttemptAt is timestamp);
+      }
+
+      allow get: if signedIn() && validLiveSessionId() && resource != null;
+      allow list: if false;
+      allow create: if signedIn() && validLiveSessionId() && validLiveSession();
+      allow update: if validLiveSessionId() && liveOwner() && validLiveSession()
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if false;
+
+      match /connections/{connectionUid} {
+        function ownConnection() {
+          return signedIn() && connectionUid == request.auth.uid;
+        }
+        function parentLiveOwner() {
+          return signedIn()
+            && get(/databases/$(database)/documents/liveSessions/$(sessionId)).data.ownerUid == request.auth.uid;
+        }
+        function validPresence() {
+          return request.resource.data.keys().hasOnly([
+              'status', 'confirmedAt', 'lastHeartbeatAt', 'endedAt', 'endedRevision'
+            ])
+            && request.resource.data.status in ['connected', 'ended']
+            && (!('confirmedAt' in request.resource.data) || request.resource.data.confirmedAt is timestamp)
+            && (!('lastHeartbeatAt' in request.resource.data) || request.resource.data.lastHeartbeatAt is timestamp)
+            && (!('endedAt' in request.resource.data) || request.resource.data.endedAt is timestamp)
+            && (!('endedRevision' in request.resource.data) || request.resource.data.endedRevision is int);
+        }
+
+        allow get: if validLiveSessionId() && (ownConnection() || parentLiveOwner());
+        allow list: if validLiveSessionId() && parentLiveOwner();
+        allow create, update: if validLiveSessionId()
+          && exists(/databases/$(database)/documents/liveSessions/$(sessionId))
+          && ownConnection() && validPresence();
+        allow delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

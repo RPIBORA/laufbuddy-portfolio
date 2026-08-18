@@ -1,0 +1,23 @@
+import { createLiveCompanionMachine, createLiveSessionId, getLiveTransmissionStatus, isLiveShareAllowed, reduceLiveCompanionState } from './liveSessionLogic';
+function expect(value: boolean, message: string): void { if (!value) throw new Error(message); }
+let state = createLiveCompanionMachine();
+state = reduceLiveCompanionState(state, { confirmed: false, connected: false, endedRevision: 0 }).state;
+let next = reduceLiveCompanionState(state, { confirmed: true, connected: true, endedRevision: 0 }); expect(next.transition === 'confirmed', 'confirmation must announce once'); state = next.state;
+next = reduceLiveCompanionState(state, { confirmed: true, connected: false, endedRevision: 0 }); expect(next.transition === 'disconnected', 'disconnect must announce once'); state = next.state;
+next = reduceLiveCompanionState(state, { confirmed: true, connected: true, endedRevision: 0 }); expect(next.transition === 'restored', 'restore must announce once');
+state = next.state;
+next = reduceLiveCompanionState(state, { confirmed: true, connected: true, endedRevision: 0 }); expect(next.transition === null, 'unchanged heartbeat must not repeat TTS');
+next = reduceLiveCompanionState(state, { confirmed: true, connected: true, endedRevision: 1 }); expect(next.transition === 'ended', 'explicit end must announce once');
+state = next.state;
+next = reduceLiveCompanionState(state, { confirmed: true, connected: true, endedRevision: 1 }); expect(next.transition === null, 'same explicit end must not repeat TTS');
+expect(getLiveTransmissionStatus({ nowMs: 20_000, lastHeartbeatAtMs: 0, lastPositionAtMs: 0 }) === 'data_lost', 'data status must take priority');
+expect(getLiveTransmissionStatus({ nowMs: 20_000, lastHeartbeatAtMs: 10_000, lastPositionAtMs: 0 }) === 'gps_lost', 'GPS loss must be independent');
+expect(isLiveShareAllowed({ runMode: 'Solo-Lauf', sessionStatus: 'prepared' }), 'prepared solo must show Live share');
+expect(isLiveShareAllowed({ runMode: 'Solo-Lauf', sessionStatus: 'running' }), 'running solo must show Live share');
+expect(!isLiveShareAllowed({ runMode: 'Gemeinsamer Lauf', sessionStatus: 'running' }), 'shared run must not show Live share');
+expect(!isLiveShareAllowed({ runMode: 'Gemeinsamer Lauf vorbereitet', sessionStatus: 'prepared' }), 'prepared shared run must not show Live share');
+const firstBytes = Uint8Array.from({ length: 32 }, (_, index) => index);
+const secondBytes = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+const id = createLiveSessionId(firstBytes);
+expect(/^[a-f0-9]{64}$/.test(id), "session id must contain 32 random bytes");
+expect(id !== createLiveSessionId(secondBytes), "different random bytes must produce different session ids");

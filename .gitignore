@@ -1,0 +1,65 @@
+# Node / React Native / Expo
+node_modules/
+functions/lib/
+.expo/
+.expo-shared/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firestore-debug.log
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/key.properties
+
+# iOS
+ios/build/
+ios/Pods/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Local env / secrets
+.env
+.env.*
+*.keystore
+*.jks
+
+# Generated logs / dumps / temp exports
+laufbuddy_active_code_dump.txt
+laufbuddy_code_dump.txt
+laufbuddy_full_active_dump.txt
+laufbuddy_project_review.txt
+project_code.txt
+
+# Old / archive helper outputs
+xold/
+react
+react-native
+
+# Local Python venv / diagnostics / editor temp files
+lauf_buddy_venv/
+test_runs/
+*#
+/0
+/To
+/fe80::2
+.aider*
+modules/laufbuddy-motion/android/.gradle/
+.firebase/
+dist/
+/android/app/src/main/assets/model-de-de/uuid
+/screens.zip
+/ios/

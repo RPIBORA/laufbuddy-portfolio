@@ -1,0 +1,57 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8088
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": false
+    }
+  },
+  "hosting": [
+    {
+      "public": "hosting-public",
+      "ignore": [
+        "firebase.json",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "/.well-known/assetlinks.json",
+          "headers": [
+            {
+              "key": "Content-Type",
+              "value": "application/json; charset=utf-8"
+            }
+          ]
+        }
+      ],
+      "site": "laufbuddy-v2"
+    },
+    {
+      "target": "live",
+      "public": "live-web",
+      "ignore": [
+        "firebase.json",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import test, { beforeEach } from 'node:test';
+import { initializeApp, deleteApp } from 'firebase-admin/app';
+import { createHash } from 'node:crypto';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { acceptBuddyInvitationTransaction, startBuddyConnectionTransaction, removeBuddyRelationshipTransaction, closeBuddyRoomTransaction } from './buddyTransactionService.js';
+if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('FIRESTORE_EMULATOR_HOST is required; refusing production access.');
+const app = initializeApp({ projectId: 'laufbuddy-buddy-transactions-test' }, 'buddy-transactions-test'); const db = getFirestore(app);
+const token = 'A'.repeat(43); const id = createHash('sha256').update(token).digest('hex');
+beforeEach(async () => { await db.recursiveDelete(db.collection('testdata').doc('root')); await db.collection('buddy_invitations').doc(id).set({ inviterUid:'a', expiresAt: Timestamp.fromMillis(Date.now()+86400000), acceptedAt:null }); });
+test('accept creates both documents and rejects reuse/self', async () => { const r=await acceptBuddyInvitationTransaction(db,'b',token); assert.equal((await db.doc('users/a/buddies/b').get()).data()?.buddyUid,'b'); assert.equal((await db.doc('users/b/buddies/a').get()).data()?.buddyUid,'a'); await assert.rejects(acceptBuddyInvitationTransaction(db,'b',token)); await db.collection('buddy_invitations').doc('1'.repeat(64)).set({ inviterUid:'a', expiresAt:Timestamp.fromMillis(Date.now()+86400000),acceptedAt:null }); await assert.rejects(acceptBuddyInvitationTransaction(db,'a','B'.repeat(43))); await closeBuddyRoomTransaction(db,'a',r.roomId); });
+test('start requires mutual documents and removal preserves runs', async () => { await db.doc('users/c/buddies/d').set({status:'active'}); await assert.rejects(startBuddyConnectionTransaction(db,'c','d')); await db.doc('users/d/buddies/c').set({status:'active'}); const room=await startBuddyConnectionTransaction(db,'c','d'); await db.doc('users/c/runs/run').set({value:'keep'}); await removeBuddyRelationshipTransaction(db,'c','d'); assert.equal((await db.doc('users/c/buddies/d').get()).exists,false); assert.deepEqual((await db.doc('users/c/runs/run').get()).data(),{value:'keep'}); await assert.rejects(startBuddyConnectionTransaction(db,'c','d')); await closeBuddyRoomTransaction(db,'c',room.roomId); });
+test('close marks an active room and rejects non-participants', async () => { const ref=db.doc('rooms/active'); await ref.set({participantUids:['x','y']}); await assert.rejects(closeBuddyRoomTransaction(db,'z','active')); await closeBuddyRoomTransaction(db,'x','active'); assert.equal((await ref.get()).data()?.closedByUid,'x'); assert.ok((await ref.get()).data()?.closedAt); });
+test('cleanup', async () => { await deleteApp(app); });
