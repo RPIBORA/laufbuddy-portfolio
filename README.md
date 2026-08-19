@@ -1,4 +1,4 @@
-# LaufBuddy Core
+# LaufBuddy – Android / React Native Portfolio Project
 
 [![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo_SDK-54-000020?logo=expo&logoColor=white)](https://expo.dev/)
@@ -6,16 +6,20 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-Native_Modules-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
 [![Android](https://img.shields.io/badge/Android-API_29_--_36-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
 
-**LaufBuddy** ist eine hybride Android-Lauf- und Sicherheits-App. Sie verbindet eine React-Native/TypeScript-Architektur mit maßgeschneiderten nativen Android-Modulen in Kotlin für hardwarenahe und ausfallsichere Funktionen wie Audio-Focus-Management, Headset-Erkennung, Hintergrundverarbeitung, Bewegungserkennung und Notfall-Workflows.
+**LaufBuddy** ist eine eigenständig entwickelte Android-Lauf-App auf Basis von React Native und TypeScript mit nativen Android-Modulen in Kotlin.
+
+Das Projekt verbindet klassisches GPS-Lauftracking mit Live-Funktionen, Sprachsteuerung, Echtzeitkommunikation, BLE-Sensoren und robusten Android-Hintergrundprozessen.
 
 ---
 
 ## 🚀 Key Features
 
-* **GPS-Tracking & Session-Recovery:** Robuste Ortungs- und Laufstatus-Logik mit automatischer Wiederherstellung aktiver Sessions bei Prozessneustarts.
-* **Sicherheits- & Notfall-Abläufe:** Headset-gebundene Sprach- und Hotword-Erkennung (offline via Vosk) sowie native Ausfallsicherung für Notfall-Anrufe und WorkManager-Tasks.
-* **Live-Sharing & Buddy-System:** Echtzeit-Standortfreigabe und Buddy-Interaktionen basierend auf Firebase/Firestore.
-* **Sensor-Integration:** Anbindung externer Herzfrequenz- und Pulssensoren über Bluetooth Low Energy (BLE).
+- **GPS-Tracking & Session-Recovery:** Route, Distanz, Pace, Pausen und Wiederherstellung aktiver Läufe nach Prozessneustarts.
+- **LiveBuddy:** Echtzeit-Standortfreigabe eines aktiven Laufs über Firebase/Firestore und einen persönlichen Browser-Link.
+- **BuddyWord:** Offline-Spracherkennung mit Vosk und headsetgebundene Sprachsteuerung.
+- **BuddyLauf:** Direkte Audio-Verbindung zwischen Läufern über WebRTC.
+- **BLE-Sensoren:** Integration externer Herzfrequenzsensoren über Bluetooth Low Energy.
+- **Native Android:** Eigene Kotlin-Module für Audio Focus, Headset-Erkennung, Foreground Services, WorkManager und Bewegungserkennung.
 
 ---
 
